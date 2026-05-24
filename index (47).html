@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mission Control - Dual Horizontal</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: row; /* Chia ngang: Trái - Phải */
+        }
+
+        .section {
+            flex: 1; /* Mỗi bên chiếm chính xác 50% */
+            position: relative;
+            border-right: 1px solid #333;
+            height: 100%;
+        }
+
+        .section:last-child {
+            border-right: none;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <iframe src="index (46).html"></iframe>
+        </div>
+
+        <div class="section">
+            <iframe src="index (38).html"></iframe>
+        </div>
+    </div>
+</body>
+</html>

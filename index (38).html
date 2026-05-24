@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Mô phỏng bánh xe quay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+html,body{
+    width:100%;
+    height:100%;
+}
+
+body{
+    font-family:system-ui,sans-serif;
+    background:#111;
+    color:#fff;
+
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+
+    overflow-x:hidden;
+    padding:12px;
+}
+
+/* =========================
+   TITLE
+========================= */
+h1{
+    font-size:clamp(22px,4vw,36px);
+    margin-bottom:14px;
+    text-align:center;
+}
+
+/* =========================
+   CONTAINER
+========================= */
+.container{
+    width:100%;
+    max-width:1400px;
+
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:16px;
+}
+
+/* =========================
+   MAIN
+========================= */
+.main{
+    width:100%;
+
+    display:flex;
+    flex-direction:row;
+
+    justify-content:center;
+    align-items:center;
+
+    gap:24px;
+    flex-wrap:nowrap;
+}
+
+/* =========================
+   CANVAS WRAP
+========================= */
+.canvas-wrap{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    flex:0 1 auto;
+}
+
+/* =========================
+   CANVAS
+========================= */
+canvas{
+    width:min(38vw,320px);
+    height:min(38vw,320px);
+
+    max-width:100%;
+    max-height:100%;
+
+    background:#000;
+    border-radius:50%;
+
+    box-shadow:0 0 20px rgba(255,105,180,.6);
+}
+
+/* =========================
+   INFO
+========================= */
+.info{
+    width:min(95vw,520px);
+
+    background:#1c1c1c;
+    border-radius:14px;
+
+    padding:16px;
+
+    font-size:clamp(14px,2vw,18px);
+    line-height:1.9;
+
+    overflow-wrap:anywhere;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+.controls{
+    width:min(95vw,520px);
+
+    display:flex;
+    gap:12px;
+
+    flex-wrap:wrap;
+}
+
+button{
+    flex:1 1 120px;
+
+    padding:12px;
+
+    border:none;
+    border-radius:12px;
+
+    font-size:clamp(14px,2vw,18px);
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+button:hover{
+    transform:scale(1.03);
+}
+
+.start{
+    background:#ff69b4;
+    color:#fff;
+}
+
+.pause{
+    background:#ffa500;
+    color:#fff;
+}
+
+.reset{
+    background:#ff4444;
+    color:#fff;
+}
+
+/* =========================
+   TABLET
+========================= */
+@media (max-width:900px){
+
+    .main{
+        gap:16px;
+    }
+
+    canvas{
+        width:min(42vw,280px);
+        height:min(42vw,280px);
+    }
+}
+
+/* =========================
+   MOBILE
+========================= */
+@media (max-width:600px){
+
+    body{
+        padding:10px;
+    }
+
+    .main{
+        gap:10px;
+    }
+
+    canvas{
+        width:min(44vw,220px);
+        height:min(44vw,220px);
+    }
+
+    .info{
+        width:100%;
+        font-size:15px;
+        line-height:1.7;
+        padding:14px;
+    }
+
+    .controls{
+        width:100%;
+        gap:10px;
+    }
+
+    button{
+        flex:1 1 100%;
+    }
+}
+
+/* =========================
+   VERY SMALL HEIGHT
+========================= */
+@media (max-height:500px){
+
+    h1{
+        margin-bottom:8px;
+    }
+
+    .main{
+        gap:8px;
+    }
+
+    canvas{
+        width:min(30vh,200px);
+        height:min(30vh,200px);
+    }
+
+    .info{
+        line-height:1.5;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎡 Bánh xe quay</h1>
+
+<div class="container">
+
+    <div class="main">
+
+        <div class="canvas-wrap">
+            <canvas id="wheel" width="300" height="300"></canvas>
+        </div>
+
+        <div class="canvas-wrap">
+            <canvas id="gauge" width="300" height="300"></canvas>
+        </div>
+
+    </div>
+
+    <div class="info">
+        ⏱ <span id="time">0.00</span> s<br>
+
+        🔄 <span id="rpm">1.000000</span> RPM<br>
+
+        📈 Rate:
+        <span id="rate">1.000000</span><br>
+
+        ⚙ Rate growth (1% of Rate):
+        <span id="rateGrowth">0.010000</span><br>
+
+        📅 Ngày
+        <span id="day">0</span>
+    </div>
+
+    <div class="controls">
+
+        <button class="start" id="startBtn">
+            Bắt đầu
+        </button>
+
+        <button class="pause" id="pauseBtn">
+            Dừng
+        </button>
+
+        <button class="reset" id="resetBtn">
+            Reset
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+/* =========================
+   CANVAS
+========================= */
+const wheel = document.getElementById("wheel");
+const wctx  = wheel.getContext("2d");
+
+const gauge = document.getElementById("gauge");
+const gctx  = gauge.getContext("2d");
+
+/* =========================
+   CONFIG
+========================= */
+const DAY = 86400;
+
+const MAX_RPM = 400000;
+const STEP    = 50000;
+
+/* =========================
+   STATE
+========================= */
+let state = JSON.parse(
+    localStorage.getItem("wheelSave")
+) || {
+
+    logRPM : Math.log(1),
+    logRate: Math.log(1),
+
+    elapsed:0,
+    angle:0,
+
+    running:false
+};
+
+/* =========================
+   SAVE
+========================= */
+function save(){
+
+    localStorage.setItem(
+        "wheelSave",
+        JSON.stringify(state)
+    );
+}
+
+/* =========================
+   FORMAT HUGE
+========================= */
+function formatHuge(logValue){
+
+    const log10 = logValue / Math.LN10;
+
+    if(log10 < 6){
+
+        return Math.exp(logValue).toFixed(6);
+    }
+
+    if(log10 < 1e6){
+
+        return "1e" + log10.toFixed(3);
+    }
+
+    return "10^(10^" +
+           Math.log10(log10).toFixed(3)
+           + ")";
+}
+
+/* =========================
+   DRAW WHEEL
+========================= */
+function drawWheel(){
+
+    const cx = 150;
+    const cy = 150;
+    const r  = 120;
+
+    wctx.clearRect(0,0,300,300);
+
+    wctx.beginPath();
+
+    wctx.arc(
+        cx,
+        cy,
+        r,
+        0,
+        Math.PI*2
+    );
+
+    wctx.strokeStyle="#ff69b4";
+    wctx.lineWidth=14;
+
+    wctx.stroke();
+
+    wctx.save();
+
+    wctx.translate(cx,cy);
+    wctx.rotate(state.angle);
+
+    wctx.strokeStyle="#ff69b4";
+    wctx.lineCap="round";
+    wctx.lineWidth=10;
+
+    for(let i=0;i<4;i++){
+
+        wctx.beginPath();
+
+        wctx.moveTo(0,0);
+        wctx.lineTo(r,0);
+
+        wctx.stroke();
+
+        wctx.rotate(Math.PI/2);
+    }
+
+    wctx.restore();
+}
+
+/* =========================
+   DRAW GAUGE
+========================= */
+function drawGauge(){
+
+    const cx = 150;
+    const cy = 150;
+    const r  = 120;
+
+    gctx.clearRect(0,0,300,300);
+
+    gctx.beginPath();
+
+    gctx.arc(
+        cx,
+        cy,
+        r,
+        0,
+        Math.PI*2
+    );
+
+    gctx.strokeStyle="#666";
+    gctx.lineWidth=4;
+
+    gctx.stroke();
+
+    const startAngle =
+        4*Math.PI/3 - Math.PI/2;
+
+    const stepAngle =
+        Math.PI/6;
+
+    gctx.font="12px system-ui";
+
+    gctx.fillStyle="#fff";
+    gctx.textAlign="center";
+    gctx.textBaseline="middle";
+
+    for(let i=0;i<=MAX_RPM;i+=STEP){
+
+        const idx = i / STEP;
+
+        const a =
+            startAngle +
+            idx * stepAngle;
+
+        gctx.beginPath();
+
+        gctx.moveTo(
+            cx + Math.cos(a)*(r-10),
+            cy + Math.sin(a)*(r-10)
+        );
+
+        gctx.lineTo(
+            cx + Math.cos(a)*r,
+            cy + Math.sin(a)*r
+        );
+
+        gctx.strokeStyle="#fff";
+        gctx.lineWidth=3;
+
+        gctx.stroke();
+
+        gctx.fillText(
+            i,
+
+            cx + Math.cos(a)*(r-28),
+            cy + Math.sin(a)*(r-28)
+        );
+    }
+
+    let realRPM;
+
+    if(state.logRPM > 700){
+
+        realRPM = MAX_RPM;
+
+    }else{
+
+        realRPM = Math.exp(state.logRPM);
+    }
+
+    const displayRPM =
+        Math.min(realRPM, MAX_RPM);
+
+    const needle =
+        startAngle +
+        (displayRPM / STEP) * stepAngle;
+
+    gctx.beginPath();
+
+    gctx.moveTo(cx,cy);
+
+    gctx.lineTo(
+        cx + Math.cos(needle)*(r-35),
+        cy + Math.sin(needle)*(r-35)
+    );
+
+    gctx.strokeStyle="#ff4444";
+    gctx.lineWidth=4;
+
+    gctx.stroke();
+
+    gctx.beginPath();
+
+    gctx.arc(
+        cx,
+        cy,
+        6,
+        0,
+        Math.PI*2
+    );
+
+    gctx.fillStyle="#fff";
+
+    gctx.fill();
+}
+
+/* =========================
+   LOOP
+========================= */
+let last = null;
+
+function loop(t){
+
+    requestAnimationFrame(loop);
+
+    if(!state.running) return;
+
+    if(!last) last = t;
+
+    const dt = (t-last)/1000;
+
+    last = t;
+
+    state.elapsed += dt;
+
+    const currentRate =
+        Math.exp(
+            Math.min(state.logRate,700)
+        );
+
+    const growth =
+        1 + currentRate * 0.01;
+
+    state.logRate +=
+        Math.log(growth) * dt / DAY;
+
+    state.logRPM +=
+        state.logRate * dt / DAY;
+
+    let rpmSafe;
+
+    if(state.logRPM > 700){
+
+        rpmSafe = MAX_RPM;
+
+    }else{
+
+        rpmSafe =
+            Math.exp(state.logRPM);
+    }
+
+    state.angle +=
+        (rpmSafe * 2 * Math.PI / 60)
+        * dt;
+
+    save();
+
+    /* ===== UPDATE UI ===== */
+
+    time.textContent =
+        state.elapsed.toFixed(2);
+
+    rpm.textContent =
+        formatHuge(state.logRPM);
+
+    rate.textContent =
+        formatHuge(state.logRate);
+
+    rateGrowth.textContent =
+        formatHuge(
+            Math.log(
+                currentRate * 0.01
+            )
+        );
+
+    day.textContent =
+        Math.floor(
+            state.elapsed / DAY
+        );
+
+    drawWheel();
+    drawGauge();
+}
+
+/* =========================
+   BUTTONS
+========================= */
+startBtn.onclick = ()=>{
+
+    state.running = true;
+
+    last = null;
+};
+
+pauseBtn.onclick = ()=>{
+
+    state.running = false;
+};
+
+resetBtn.onclick = ()=>{
+
+    state = {
+
+        logRPM : Math.log(1),
+        logRate: Math.log(1),
+
+        elapsed:0,
+        angle:0,
+
+        running:false
+    };
+
+    save();
+
+    drawWheel();
+    drawGauge();
+
+    time.textContent = "0.00";
+    rpm.textContent  = "1.000000";
+    rate.textContent = "1.000000";
+
+    rateGrowth.textContent =
+        "0.010000";
+
+    day.textContent = "0";
+};
+
+/* =========================
+   INIT
+========================= */
+drawWheel();
+drawGauge();
+
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
